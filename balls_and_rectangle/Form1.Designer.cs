@@ -31,7 +31,7 @@
             pictureBox1 = new PictureBox();
             panel1 = new Panel();
             textBox1 = new TextBox();
-            button2 = new Button();
+            clear = new Button();
             button_add = new Button();
             panel2 = new Panel();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
@@ -52,7 +52,7 @@
             // panel1
             // 
             panel1.Controls.Add(textBox1);
-            panel1.Controls.Add(button2);
+            panel1.Controls.Add(clear);
             panel1.Controls.Add(button_add);
             panel1.Dock = DockStyle.Right;
             panel1.Location = new Point(935, 0);
@@ -67,14 +67,15 @@
             textBox1.Size = new Size(106, 27);
             textBox1.TabIndex = 2;
             // 
-            // button2
+            // clear
             // 
-            button2.Location = new Point(19, 48);
-            button2.Name = "button2";
-            button2.Size = new Size(94, 29);
-            button2.TabIndex = 1;
-            button2.Text = "button2";
-            button2.UseVisualStyleBackColor = true;
+            clear.Location = new Point(19, 48);
+            clear.Name = "clear";
+            clear.Size = new Size(94, 29);
+            clear.TabIndex = 1;
+            clear.Text = "clear";
+            clear.UseVisualStyleBackColor = true;
+            clear.MouseClick += clear_MouseClick;
             // 
             // button_add
             // 
@@ -115,7 +116,7 @@
 
         private PictureBox pictureBox1;
         private Panel panel1;
-        private Button button2;
+        private Button clear;
         private Button button_add;
         private TextBox textBox1;
         private Panel panel2;

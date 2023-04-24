@@ -1,3 +1,7 @@
+﻿using static System.Net.Mime.MediaTypeNames;
+using System.Drawing;
+using System.Xml.Linq;
+
 namespace balls_and_rectangle
 {
     public partial class Form1 : Form
@@ -38,11 +42,11 @@ namespace balls_and_rectangle
 
         private Point RandomSgn()
         {
-            Point d = new Point(rnd.Next(-1, 1), rnd.Next(-1, 1));
+            Point d = new Point(rnd.Next(-1, 2), rnd.Next(-1, 2));
 
-            while(d.X == 0 && d.Y == 0)
+            while (d.X == 0 && d.Y == 0)
             {
-                d = new Point(rnd.Next(-1, 1), rnd.Next(-1, 1));
+                d = new Point(rnd.Next(-1, 2), rnd.Next(-1, 2));
             }
             return d;
             //if (rnd.Next(-10, 10) > 0)
@@ -53,26 +57,41 @@ namespace balls_and_rectangle
         {
             if (!flagButtonAdd) { return; }
 
-           
-            Square square = new Square(e.X, e.Y);
+
+            Square square = new Square(
+                e.X, e.Y,
+                14,
+                rnd.Next(0, 256), rnd.Next(0, 256), rnd.Next(0, 256));
             squares.Add(square);
 
-            var t = new Thread(() => addNewCircle(e.X, e.Y));
+            var t = new Thread(() => addNewCircle(e.X, e.Y, square.GetColor, square.Id));
             t.Start();
 
             flagButtonAdd = false;
-            
+
         }
 
-        private void addNewCircle(int x, int y)
+        bool IsAliveSquare(int id)
         {
-            while (true)
+            if(squares.Count == 0) return false;
+
+            foreach (var square in squares)
+            {
+                if (square.Id == id) return true;
+            }
+            return false;
+        }
+        private void addNewCircle(int x, int y, Color color, int id)
+        {
+            while (IsAliveSquare(id))
             {
                 Point deltaV = RandomSgn();
                 Circle circle = new Circle(
                     x, y,
                     10,
-                    deltaV.X, deltaV.Y
+                    deltaV.X, deltaV.Y,
+                    color.R, color.G, color.B,
+                    id
                 );
 
                 circles.Add(circle);
@@ -81,7 +100,7 @@ namespace balls_and_rectangle
             }
         }
 
-        private bool IsAlive(Circle a)
+        private bool IsAliveCircle(Circle a)
         {
             if (a.X - a.R <= 0 || a.X + a.R > ContainerSize.Width)
                 return false;
@@ -90,44 +109,131 @@ namespace balls_and_rectangle
             return true;
         }
 
+        private bool IsIntersectionCircle(Circle a, Circle b)
+        {
+            if ((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y) < a.R * a.R * 4)
+                return true;
+            return false;
+        }
+
         void Draw()
         {
             while (true)
             {
-
-                foreach(var to in circles.ToList())
+                List<Circle> circlesCopy;
+                if (circles.Count > 0)
                 {
-                    if (!IsAlive(to))
+                    // удаляем окружности, которые вышли за пределы
+                    circlesCopy = circles.ToList();
+                    foreach (var to in circlesCopy)
                     {
-                        circles.Remove(to);
+                        if (!IsAliveCircle(to))
+                        {
+                            circles.Remove(to);
+                        }
                     }
                 }
 
-                buff_g.Graphics.Clear(Color.White);
-                foreach (var to in squares)
+                if (circles.Count > 0)
                 {
-                    buff_g.Graphics.DrawRectangle(pen,
-                        to.X - to.HalfSide, to.Y - to.HalfSide,
-                        2 * to.HalfSide, 2 * to.HalfSide
-                        );
+                    circlesCopy = circles.ToList();
+
+                    // находим окружности, которые пересекаются
+                    List<int> removeCircles = new List<int>();
+                                        
+                    for (int i = 0; i < circlesCopy.Count; ++i)
+                    {
+                        for (int j = i + 1; j < circlesCopy.Count; ++j)
+                        {
+                            if (IsIntersectionCircle(circlesCopy[i], circlesCopy[j]))
+                            {
+                                if (rnd.Next(0, 10) % 2 == 0)
+                                {
+                                    removeCircles.Add(i);
+                                    for(int k = 0; k < squares.Count; ++k)
+                                    {
+                                        if (squares[k].Id == circlesCopy[j].Parent)
+                                            squares[k].CntKill += 1;
+                                    }
+                                }
+                                else
+                                {
+                                    removeCircles.Add(j);
+                                    for (int k = 0; k < squares.Count; ++k)
+                                    {
+                                        if (squares[k].Id == circlesCopy[i].Parent)
+                                            squares[k].CntKill += 1;
+                                    }
+                                }
+                                
+                                break;
+                            }
+                        }
+                    }
+
+                    // удаляем окружности, которые пересекаются
+                    foreach (var to in removeCircles)
+                    {
+                        if (circles.Count > 0)
+                            circles.Remove(circlesCopy[to]);
+                    }
                 }
 
-                //textBox1.Text = circles.Count.ToString();
 
-                foreach (var to in circles)
+
+                // рисуем квадраты
+                buff_g.Graphics.Clear(Color.White);
+
+                if (squares.Count > 0)
                 {
-                    to.Move();
+                    foreach (var to in squares)
+                    {
+                        pen.Color = to.GetColor;
 
-                    //textBox1.Text = to.X.ToString() + ' ' + to.Y.ToString();
 
-                    buff_g.Graphics.DrawEllipse(pen,
-                        to.X - to.R, to.Y - to.R,
-                        2 * to.R, 2 * to.R
-                        );
+                        string text1 = to.CntKill.ToString();
+                        using (Font font1 = new Font("Arial", 12, FontStyle.Bold, GraphicsUnit.Point))
+                        {
+                            RectangleF tmp = new Rectangle(
+                                to.X - to.HalfSide, to.Y - to.HalfSide,
+                                2 * to.HalfSide, 2 * to.HalfSide);
+
+                            buff_g.Graphics.DrawString(text1, font1, Brushes.Black, tmp);
+                            buff_g.Graphics.DrawRectangle(pen, Rectangle.Round(tmp));
+                        }
+                        
+                    }
+                }
+
+
+                //textBox1.Text = circles.Count.ToString();
+                // рисуем окружности 
+                if (circles.Count > 0)
+                {
+
+                    foreach (var to in circles)
+                    {
+                        to.Move();
+
+                        pen.Color = to.GetColor;
+                        buff_g.Graphics.DrawEllipse(pen,
+                            to.X - to.R, to.Y - to.R,
+                            2 * to.R, 2 * to.R
+                            );
+                    }
                 }
                 buff_g.Render();
                 Thread.Sleep(100);
             }
+        }
+
+        private void clear_MouseClick(object sender, MouseEventArgs e)
+        {
+            buff_g.Graphics.Clear(Color.White);
+            buff_g.Render();
+
+            circles.Clear();
+            squares.Clear();
         }
     }
 }
